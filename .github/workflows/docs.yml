@@ -6,6 +6,13 @@ name: API Docs
 # other workflows. To rebuild, re-run this workflow's run for the tag: the
 # docgen action only builds API docs on `push` events.
 #
+# The API docs cover the whole import closure (Mathlib, VCVio, ...), which takes
+# about two hours without the docgen action's cache. A run can only restore
+# caches saved on its own ref or on the default branch, so a cache saved by one
+# tag's run is invisible to the next tag. The workflow therefore also runs on
+# `main` whenever the dependencies change: that run only saves the cache, under
+# `main`, where every later tag finds it.
+#
 # The docgen action would publish the API docs under `docs/` of the site, with
 # nothing at the root. We deploy ourselves and publish the doc-gen4 output as
 # the site, so its own `index.html` is the root page.
@@ -14,6 +21,12 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+    paths:
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/docs.yml'
 
 permissions:
   contents: read # Read access to repository contents
@@ -42,11 +55,15 @@ jobs:
           sudo mkswap /mnt/swapfile
           sudo swapon /mnt/swapfile
           free -h
-      - uses: leanprover-community/docgen-action@v1
+      # Pinned to a commit of `main`: the `v1` branch predates the
+      # `build-page` and `deploy` inputs and ignores them.
+      - uses: leanprover-community/docgen-action@dacc1acc2a3f532cc577266979ba9c36c7593f7c
         with:
           build-page: false
           deploy: false
-      - uses: actions/upload-pages-artifact@v5
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs/docs/
-      - uses: actions/deploy-pages@v4
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/deploy-pages@v4
