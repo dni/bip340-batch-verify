@@ -6,7 +6,7 @@ import BatchVerify.BIP340Batch
 #print axioms BatchVerify.BIP340.batchVerify_sound
 #print axioms BatchVerify.BIP340.batchVerify_sound_bits
 #print axioms BatchVerify.BIP340.batchVerify_sound_single
-#print axioms BatchVerify.BIP340Batch.prEvent_bad_le
+#print axioms BatchVerify.BIP340Batch.wp_badVal_le
 #print axioms BatchVerify.BIP340Batch.batch_incremental_sound
 #print axioms BatchVerify.BIP340Batch.batch_indexed_sound
 #print axioms BatchVerify.BIP340Batch.batch_indexed_grind

@@ -15,10 +15,10 @@ Each result holds for every choice of the challenge hash.
 | Setting | Result | Theorem |
 |---|---|---|
 | Independent uniform `b`-bit randomizers | An invalid signature is caught except with probability `2^-b`. | `batchVerify_sound_bits` |
-| Randomizers hashed from the whole batch (the BIP340 text) | An attacker making `q` hash queries, with batches of at most `ℓ` signatures, gets an invalid batch accepted with probability **at most `(q + ℓ)/2^b`**. | `batch_indexed_sound` |
-| Incremental derivation (randomizer `i` hashes the first `i` entries) | The same bound, **`(q + ℓ)/2^b`**, although the attacker chooses later entries after seeing earlier randomizers. | `batch_incremental_sound` |
-| Both derivations on secp256k1 with `b = 128` | **`(q + ℓ)/2^128`** | `secp256k1_batch_indexed_sound`, `secp256k1_batch_incremental_sound` |
-| Lower bound, both derivations | An explicit grinding attacker reaches **`1 - (1 - 2^-b)^q ≈ q/2^b`** (for `q ≪ 2^b`), so the `q` term is tight. | `batch_indexed_grind`, `batch_incremental_grind` |
+| Randomizers hashed from the whole batch (the BIP340 text) | An attacker making `q` hash queries gets an invalid batch accepted with probability **at most `(q + 1)/2^b`**, however large the batch. | `batch_indexed_sound` |
+| Incremental derivation (randomizer `i` hashes the first `i` entries) | The same bound, **`(q + 1)/2^b`**, although the attacker chooses later entries after seeing earlier randomizers. | `batch_incremental_sound` |
+| Both derivations on secp256k1 with `b = 128` | **`(q + 1)/2^128`** | `secp256k1_batch_indexed_sound`, `secp256k1_batch_incremental_sound` |
+| Lower bound, both derivations | An explicit grinding attacker reaches **`1 - (1 - 2^-b)^q ≈ q/2^b`** (for `q ≪ 2^b`), so the bound is tight. | `batch_indexed_grind`, `batch_incremental_grind` |
 
 What this means for 128-bit randomizers: they are sound, and the only extra cost of deriving them deterministically is offline grinding at one hash per attempt. About `2^64` hash evaluations get an invalid batch accepted with probability about `2^-64`.
 
@@ -39,14 +39,16 @@ The grinding attack: from one valid signature `(pk, m, r, s)`, the batch `[(pk, 
 
 | Theorem | Statement |
 |---|---|
-| `batch_incremental_sound` | Incremental derivation: winning probability at most `(q + ℓ)/2^b` (`2^b ≤ n`). |
+| `batch_incremental_sound` | Incremental derivation: winning probability at most `(q + 1)/2^b` (`2^b ≤ n`), for batches of any size. |
 | `batch_indexed_sound` | Whole-batch derivation: the same bound. |
 | `secp256k1_batch_indexed_sound`, `secp256k1_batch_incremental_sound` | Both bounds on secp256k1 with `b = 128`. |
 | `batch_grind` | The grinding lower bound `1 - (1 - 2^-b)^q` for any derivation that tells the candidate batches apart. |
-| `batch_indexed_grind`, `batch_incremental_grind` | The grinding lower bound for each derivation, against the upper bound `(q + 2)/2^b`. |
-| `prEvent_bad_le` | A generic random-oracle bad-event bound with a potential. It allows one fresh answer to complete several bad candidates, as long as earlier queries paid for them. |
+| `batch_indexed_grind`, `batch_incremental_grind` | The grinding lower bound for each derivation, against the upper bound `(q + 1)/2^b`. |
+| `wp_badVal_le` | A generic random-oracle bad-event bound with a potential, in expectation. It allows one fresh answer to complete several bad candidates, as long as earlier queries paid for them, and lets a phase of queries be paid for by the potential alone. |
 
 Proof idea (incremental): cut the winning batch after its last invalid signature. That prefix still passes, and its equation involves only coefficients of its own prefixes. The last of those to be answered must hit the single value that solves the equation. One fresh answer can complete many cached extensions of the queried prefix, but each cached prefix is completed only once, so the total stays at one bad value per query. Whole-batch derivation is simpler: one fresh answer completes at most one batch.
+
+The verifier's own hash queries cost `1/2^b` in total, not `1/2^b` each: only the last missing coefficient of the checked batch can complete it. The proof tracks the expected value of the bad event plus a potential across the attacker's and the verifier's phases, so the potential left by the attacker carries over. While the verifier works, the bad event ignores the proper prefixes of the checked batch, which can pass on their own when a coefficient is `0` without the batch passing.
 
 ## Assumptions and trust base
 
