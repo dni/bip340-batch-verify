@@ -17,6 +17,9 @@ What goes into it:
   compiler in addition to its kernel).
 * `lift_x` is correct: proven, using `p ≡ 3 (mod 4)` and that no point has `y = 0`
   (`-7` is not a cube mod `p`, checked by the kernel).
+
+We also prove that the group has exactly `n` points (`card_eq_n`), so every
+point satisfies `n·P = 0` (`primeOrder`).
 -/
 
 namespace BatchVerify.Secp256k1
@@ -219,7 +222,7 @@ def secp256k1 : Curve n Point F where
 
 /-! ## The group has exactly `n` points
 
-Every point satisfies `n·P = 0`, without point counting: a point is determined
+No point-counting algorithm is needed: a point is determined
 by its x-coordinate and the parity of its y-coordinate, so there are at most
 `2p + 1` points. `n` divides their number (`G` has order `n`), and `3n > 2p + 1`,
 so there are `n` or `2n` points. No point has order `2` (that needs `y = 0`), so
@@ -244,14 +247,14 @@ theorem code_injective : Function.Injective code := by
     · have := val_neg_parity (y_ne_zero hc)
       exfalso
       rcases Nat.mod_two_eq_zero_or_one y.val with h0 | h1 <;>
-        simp_all <;> omega
+        simp_all
 
 instance : Finite Point := Finite.of_injective code code_injective
 
 theorem card_le : Nat.card Point ≤ 2 * p + 1 := by
   have := Nat.card_le_card_of_injective code code_injective
-  rwa [Nat.card_eq_fintype_card (α := Option (F × Bool)), Fintype.card_option,
-    Fintype.card_prod, ZMod.card, Fintype.card_bool, mul_comm] at this
+  rwa [Finite.card_option, Nat.card_prod, Nat.card_zmod, Nat.card_eq_fintype_card (α := Bool),
+    Fintype.card_bool, mul_comm] at this
 
 /-- No point has order `2`: `P = -P` forces `y = -y`, so `y = 0`. -/
 theorem eq_zero_of_two_nsmul {P : Point} (h : 2 • P = 0) : P = 0 := by

@@ -51,7 +51,7 @@ Proof idea (incremental): cut the winning batch after its last invalid signature
 ## Assumptions and trust base
 
 - The seed hash and the CSPRNG are idealized as a random oracle. The first randomizer is fixed to `1`, as in BIP340.
-- Every point satisfies `n·P = 0` (`Curve.PrimeOrder`). This holds for secp256k1 (cofactor 1) but needs point counting, which isn't done.
+- The generic results assume every point satisfies `n·P = 0` (`Curve.PrimeOrder`). For secp256k1 this is proven (`Secp256k1.primeOrder`): there are at most `2p + 1` points, their number is a multiple of `n` and odd (no point has `y = 0`), so it is exactly `n`. The `secp256k1_…` versions therefore have no such hypothesis.
 - The challenge hash is an arbitrary function: no property of SHA-256 is assumed.
 
 `lake build` prints `#print axioms` for every result above (`BatchVerify/Summary.lean`):

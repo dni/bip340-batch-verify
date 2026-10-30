@@ -977,26 +977,29 @@ open Secp256k1
 theorem two_pow_128_le_n : 2 ^ 128 ≤ n := by decide
 
 /-- `batch_incremental_sound` on secp256k1 with 128-bit coefficients: an
-invalid batch is accepted with probability at most `(q + ℓ)/2^128`. -/
+invalid batch is accepted with probability at most `(q + ℓ)/2^128`. Unlike the
+generic version this needs no `PrimeOrder` hypothesis: secp256k1 has exactly
+`n` points (`Secp256k1.card_eq_n`). -/
 theorem secp256k1_batch_incremental_sound {M : Type} [DecidableEq M]
     (challenge : F → F → M → ZMod n) [UniformAnswerMeasure (PrefixSpec n F M 128)]
-    (hord : PrimeOrder n Point) (adv : OracleComp (PrefixSpec n F M 128) (List (Entry n F M)))
+    (adv : OracleComp (PrefixSpec n F M 128) (List (Entry n F M)))
     (q ℓ : ℕ) (hq : IsTotalQueryBound adv q) (hℓ : ∀ L ∈ support adv, L.length ≤ ℓ) :
     Pr{let z ← (simulateQ (PrefixSpec n F M 128).cachingOracle
       (batchGame 128 prefixKey adv)).run ∅}[Wins secp256k1 challenge z.1] ≤
         ((q + ℓ : ℕ) : ℝ≥0∞) / (2 ^ 128 : ℕ) :=
-  batch_incremental_sound secp256k1 challenge 128 hord two_pow_128_le_n adv q ℓ hq hℓ
+  batch_incremental_sound secp256k1 challenge 128 primeOrder two_pow_128_le_n adv q ℓ hq hℓ
 
 /-- `batch_indexed_sound` on secp256k1 with 128-bit coefficients: an invalid
-batch is accepted with probability at most `(q + ℓ)/2^128`. -/
+batch is accepted with probability at most `(q + ℓ)/2^128`, with no
+`PrimeOrder` hypothesis. -/
 theorem secp256k1_batch_indexed_sound {M : Type} [DecidableEq M]
     (challenge : F → F → M → ZMod n) [UniformAnswerMeasure (IndexSpec n F M 128)]
-    (hord : PrimeOrder n Point) (adv : OracleComp (IndexSpec n F M 128) (List (Entry n F M)))
+    (adv : OracleComp (IndexSpec n F M 128) (List (Entry n F M)))
     (q ℓ : ℕ) (hq : IsTotalQueryBound adv q) (hℓ : ∀ L ∈ support adv, L.length ≤ ℓ) :
     Pr{let z ← (simulateQ (IndexSpec n F M 128).cachingOracle
       (batchGame 128 indexKey adv)).run ∅}[Wins secp256k1 challenge z.1] ≤
         ((q + ℓ : ℕ) : ℝ≥0∞) / (2 ^ 128 : ℕ) :=
-  batch_indexed_sound secp256k1 challenge 128 hord two_pow_128_le_n adv q ℓ hq hℓ
+  batch_indexed_sound secp256k1 challenge 128 primeOrder two_pow_128_le_n adv q ℓ hq hℓ
 
 end Secp256k1
 

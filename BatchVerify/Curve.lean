@@ -107,9 +107,9 @@ theorem eq_of_x_eq {P Q : E} (hP : P ≠ 0) (hQ : Q ≠ 0) (hx : C.x P = C.x Q)
 /-! ## Groups of prime order
 
 Some results (batch verification) need every point, not just the multiples of
-`G`, to satisfy `n·P = 0`. For secp256k1 this holds because the group has
-exactly `n` points (cofactor 1), but proving that needs point counting, which
-is not done here, so these results take it as a hypothesis. -/
+`G`, to satisfy `n·P = 0`, so they take it as a hypothesis. For secp256k1 it
+holds because the group has exactly `n` points (cofactor 1), proven in
+`Secp256k1.primeOrder`. -/
 
 /-- Every point satisfies `n·P = 0` (for secp256k1: the group has prime order `n`). -/
 def PrimeOrder (n : ℕ) (E : Type*) [AddCommGroup E] : Prop := ∀ P : E, n • P = 0
