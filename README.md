@@ -53,6 +53,15 @@ Proof idea (incremental): cut the winning batch after its last invalid signature
 - The seed hash and the CSPRNG are idealized as a random oracle. The first randomizer is fixed to `1`, as in BIP340.
 - The generic results assume every point satisfies `n·P = 0` (`Curve.PrimeOrder`). For secp256k1 this is proven (`Secp256k1.primeOrder`): there are at most `2p + 1` points, their number is a multiple of `n` and odd (no point has `y = 0`), so it is exactly `n`. The `secp256k1_…` versions therefore have no such hypothesis.
 - The challenge hash is an arbitrary function: no property of SHA-256 is assumed.
+- The random oracle is queried on the batch itself (or its prefix), so different batches get independent randomizers. A real implementation hashes a byte encoding, and the results apply only if that encoding is **injective**. See [Encoding of the seed](#encoding-of-the-seed).
+
+### Encoding of the seed
+
+BIP340 has allowed messages of arbitrary size since its 2023-04 revision, but its batch seed `seed_hash(pk₁..pkᵤ ‖ m₁..mᵤ ‖ sig₁..sigᵤ)` concatenates the messages without their lengths. Moving a byte from `m₁` to `m₂` gives a different batch with the same seed, and so the same randomizers. The incremental derivation in [bitcoin-core/secp256k1#1134](https://github.com/bitcoin-core/secp256k1/pull/1134) has the same issue. It hashes each entry as `type ‖ sig ‖ msg ‖ pk` without `msglen`, so `[(sig₁, m₁, pk₁), (sig₂, m₂, pk₂)]` reaches the same hash state as the single entry `(sig₁, m₁ ‖ pk₁ ‖ type ‖ sig₂ ‖ m₂, pk₂)`.
+
+- **Bitcoin is not affected.** In Taproot (BIP341/342) every signed message is a 32-byte sighash. With fixed-length messages both encodings are injective, and the results apply as stated.
+- **For messages of arbitrary length**, one seed query then serves many batches, so the bound in seed-hash queries does not follow. No practical attack is known, since each extra batch still costs the attacker a challenge-hash evaluation. That is not proven here, though.
+- **The fix** is to hash each message's length before the message (e.g. as 8 bytes). This makes the encoding injective, so the results apply to messages of any length.
 
 `lake build` prints `#print axioms` for every result above (`BatchVerify/Summary.lean`). All of them, the `secp256k1_…` versions included, use only Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`): every computation on secp256k1 is checked by the kernel, and nothing uses `native_decide`.
 
