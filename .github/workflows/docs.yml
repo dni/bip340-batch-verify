@@ -1,0 +1,36 @@
+name: API Docs
+
+# Builds the API docs and deploys them to GitHub Pages for every release
+# (`v*` tag). It runs on the tag push rather than on the `release` event, since
+# `release.yml` creates releases with `GITHUB_TOKEN`, whose events do not start
+# other workflows. To rebuild, re-run this workflow's run for the tag: the
+# docgen action only builds API docs on `push` events.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read # Read access to repository contents
+  pages: write # Write access to GitHub Pages
+  id-token: write # Write access to ID tokens
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+      # The API docs cover the whole import closure (Mathlib, VCVio, ...), and
+      # the runner's default 4 GB of swap is not enough for doc-gen4.
+      - name: Add swap for the docs build
+        run: |
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+          sudo fallocate -l 16G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+      - uses: leanprover-community/docgen-action@v1
