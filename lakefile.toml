@@ -1,0 +1,24 @@
+name = "BIP340BatchVerify"
+version = "0.1.0"
+keywords = ["bitcoin", "cryptography", "schnorr", "bip340", "batch-verification"]
+defaultTargets = ["BatchVerify"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+weak.linter.style.header = false # no Mathlib-style copyright header needed
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.34.1"
+
+[[lean_lib]]
+name = "BatchVerify"
+
+[[require]]
+name = "VCVio"
+git = "https://github.com/Verified-zkEVM/VCV-io"
+rev = "afa6593f15e1e79ecb3cf22fc56191cecb452bb0"
