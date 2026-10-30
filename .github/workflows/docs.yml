@@ -6,8 +6,9 @@ name: API Docs
 # other workflows. To rebuild, re-run this workflow's run for the tag: the
 # docgen action only builds API docs on `push` events.
 #
-# The docgen action puts the API docs under `docs/` of the site and has no page
-# at the root, so we deploy ourselves, adding a root page that redirects there.
+# The docgen action would publish the API docs under `docs/` of the site, with
+# nothing at the root. We deploy ourselves and publish the doc-gen4 output as
+# the site, so its own `index.html` is the root page.
 
 on:
   push:
@@ -45,16 +46,7 @@ jobs:
         with:
           build-page: false
           deploy: false
-      - name: Redirect the site root to the API docs
-        run: |
-          cat > docs/index.html <<'HTML'
-          <!doctype html>
-          <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=docs/BatchVerify.html">
-          <link rel="canonical" href="docs/BatchVerify.html">
-          <a href="docs/BatchVerify.html">BatchVerify API docs</a>
-          HTML
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: docs/
+          path: docs/docs/
       - uses: actions/deploy-pages@v4
