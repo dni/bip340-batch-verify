@@ -1,2 +1,3 @@
 import BatchVerify.BIP340Batch
 import BatchVerify.Summary
+import BatchVerify.TestVectors

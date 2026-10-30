@@ -55,6 +55,8 @@ Proof idea (incremental): cut the winning batch after its last invalid signature
 - The challenge hash is an arbitrary function: no property of SHA-256 is assumed.
 - The random oracle is queried on the batch itself (or its prefix), so different batches get independent randomizers. A real implementation hashes a byte encoding, and the results apply only if that encoding is **injective**. See [Encoding of the seed](#encoding-of-the-seed).
 
+The model is checked against the official [BIP340 test vectors](https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv) (`BatchVerify/TestVectors.lean`, run by every `lake build`). For all 19 vectors, `BIP340.verify` gives the expected result, and where a secret key is given, `BIP340.pubkey` and `BIP340.sign` reproduce the public key and signature. The vectors run through double-and-add versions of these functions, which are proven equal to the model's definitions, with the tagged hashes computed by a SHA-256 implementation in `BatchVerify/SHA256.lean`. Byte decoding and its range checks (`pk < p`, `r < p`, `s < n`) are outside the model and are done in the test harness. The tests use compiled code, but no theorem depends on them.
+
 ### Encoding of the seed
 
 BIP340 has allowed messages of arbitrary size since its 2023-04 revision, but its batch seed `seed_hash(pk₁..pkᵤ ‖ m₁..mᵤ ‖ sig₁..sigᵤ)` concatenates the messages without their lengths. Moving a byte from `m₁` to `m₂` gives a different batch with the same seed, and so the same randomizers. The incremental derivation in [bitcoin-core/secp256k1#1134](https://github.com/bitcoin-core/secp256k1/pull/1134) has the same issue. It hashes each entry as `type ‖ sig ‖ msg ‖ pk` without `msglen`, so `[(sig₁, m₁, pk₁), (sig₂, m₂, pk₂)]` reaches the same hash state as the single entry `(sig₁, m₁ ‖ pk₁ ‖ type ‖ sig₂ ‖ m₂, pk₂)`.
@@ -96,6 +98,8 @@ BatchVerify/
   Pratt.lean        kernel-checked Pratt primality certificates
   Primes.lean       primality of p and n
   OrderCert.lean    slope certificate for n·G = 0
+  SHA256.lean       SHA-256 and BIP340 tagged hashes, for the test vectors
+  TestVectors.lean  the BIP340 test vectors, run against the model
   Summary.lean      axioms of the main results
 ```
 
