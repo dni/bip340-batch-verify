@@ -22,6 +22,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+      # Installs elan and builds the project; the docgen action relies on both.
+      - uses: leanprover/lean-action@v1
       # The API docs cover the whole import closure (Mathlib, VCVio, ...), and
       # the runner's default 4 GB of swap is not enough for doc-gen4. Lake also
       # grows large enough that spawning `git` (for `srcUri.github`) fails with
