@@ -23,9 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # The API docs cover the whole import closure (Mathlib, VCVio, ...), and
-      # the runner's default 4 GB of swap is not enough for doc-gen4.
+      # the runner's default 4 GB of swap is not enough for doc-gen4. Lake also
+      # grows large enough that spawning `git` (for `srcUri.github`) fails with
+      # ENOMEM under the default overcommit heuristic, so allow overcommit.
       - name: Add swap for the docs build
         run: |
+          sudo sysctl -w vm.overcommit_memory=1
           sudo swapoff -a
           sudo rm -f /mnt/swapfile
           sudo fallocate -l 16G /mnt/swapfile

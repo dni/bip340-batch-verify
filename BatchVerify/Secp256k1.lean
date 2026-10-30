@@ -217,4 +217,93 @@ def secp256k1 : Curve n Point F where
   liftX_x := liftX_x
   liftX_spec := liftX_spec
 
+/-! ## The group has exactly `n` points
+
+Every point satisfies `n·P = 0`, without point counting: a point is determined
+by its x-coordinate and the parity of its y-coordinate, so there are at most
+`2p + 1` points. `n` divides their number (`G` has order `n`), and `3n > 2p + 1`,
+so there are `n` or `2n` points. No point has order `2` (that needs `y = 0`), so
+by Cauchy's theorem the number of points is odd, hence `n`. -/
+
+/-- A point's x-coordinate and y-parity (`none` for the point at infinity). -/
+def code : Point → Option (F × Bool)
+  | .zero => none
+  | .some x y _ => some (x, y.val % 2 == 0)
+
+theorem code_injective : Function.Injective code := by
+  rintro (_ | ⟨x, y, h⟩) (_ | ⟨x', y', h'⟩) hc
+  · rfl
+  · cases hc
+  · cases hc
+  · simp only [code, Option.some.injEq, Prod.mk.injEq] at hc
+    obtain ⟨rfl, hpar⟩ := hc
+    have hc := (nonsingular_iff x y).mp h
+    have hc' := (nonsingular_iff x y').mp h'
+    rcases sq_eq_sq_iff_eq_or_eq_neg.mp (hc'.trans hc.symm) with rfl | rfl
+    · rfl
+    · have := val_neg_parity (y_ne_zero hc)
+      exfalso
+      rcases Nat.mod_two_eq_zero_or_one y.val with h0 | h1 <;>
+        simp_all <;> omega
+
+instance : Finite Point := Finite.of_injective code code_injective
+
+theorem card_le : Nat.card Point ≤ 2 * p + 1 := by
+  have := Nat.card_le_card_of_injective code code_injective
+  rwa [Nat.card_eq_fintype_card (α := Option (F × Bool)), Fintype.card_option,
+    Fintype.card_prod, ZMod.card, Fintype.card_bool, mul_comm] at this
+
+/-- No point has order `2`: `P = -P` forces `y = -y`, so `y = 0`. -/
+theorem eq_zero_of_two_nsmul {P : Point} (h : 2 • P = 0) : P = 0 := by
+  cases P with
+  | zero => rfl
+  | some x y hP =>
+    exfalso
+    have := val_neg_parity (y_ne_zero ((nonsingular_iff x y).mp hP))
+    rw [two_nsmul, add_eq_zero_iff_eq_neg] at h
+    erw [WeierstrassCurve.Affine.Point.neg_some] at h
+    have hneg : W.toAffine.negY x y = -y := by simp [W]
+    simp only [WeierstrassCurve.Affine.Point.some.injEq, hneg] at h
+    rw [← h.2] at this
+    exact this rfl
+
+theorem card_odd : ¬ 2 ∣ Nat.card Point := by
+  intro h2
+  have : Fintype Point := Fintype.ofFinite _
+  have : Fact (Nat.Prime 2) := ⟨Nat.prime_two⟩
+  have hcard : Fintype.card (Multiplicative Point) = Nat.card Point := by
+    rw [← Nat.card_eq_fintype_card]; rfl
+  obtain ⟨g, hg⟩ := exists_prime_orderOf_dvd_card (G := Multiplicative Point) 2 (hcard ▸ h2)
+  have h1 : g ^ 2 = 1 := hg ▸ pow_orderOf_eq_one g
+  have h0 : Multiplicative.toAdd g = 0 :=
+    eq_zero_of_two_nsmul (by rw [← toAdd_pow, h1, toAdd_one])
+  have : g = 1 := by rw [← ofAdd_toAdd g, h0, ofAdd_zero]
+  rw [this, orderOf_one] at hg
+  cases hg
+
+/-- **secp256k1 has exactly `n` points.** -/
+theorem card_eq_n : Nat.card Point = n := by
+  have hdvd : n ∣ Nat.card Point := by
+    rw [← addOrderOf_eq_prime n_smul_G (WeierstrassCurve.Affine.Point.some_ne_zero _)]
+    exact addOrderOf_dvd_natCard _
+  obtain ⟨k, hk⟩ := hdvd
+  have hle := card_le
+  have hodd := card_odd
+  rw [hk] at hle hodd
+  have hk3 : k < 3 := by
+    by_contra h
+    have : n * 3 ≤ n * k := Nat.mul_le_mul_left n (by omega)
+    have : 2 * p + 1 < n * 3 := by decide
+    omega
+  interval_cases k
+  · simp at hodd
+  · rw [hk, mul_one]
+  · exact absurd (dvd_mul_left 2 n) hodd
+
+/-- **Every point of secp256k1 satisfies `n·P = 0`**, the hypothesis
+`Curve.PrimeOrder` of the batch verification results. -/
+theorem primeOrder : Curve.PrimeOrder n Point := fun _ => by
+  rw [← card_eq_n]
+  exact card_nsmul_eq_zero'
+
 end BatchVerify.Secp256k1
