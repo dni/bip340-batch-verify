@@ -724,14 +724,26 @@ theorem batch_indexed_sound [UniformAnswerMeasure (IndexSpec n X M b)]
   exact (prEvent_mono_of_support _ _ _ fun z hz hw =>
     Indexed.wins_bad C challenge b hord adv z hz hw).trans hmain
 
+end Indexed
+
 /-! ## The `q` term is necessary: grinding
 
-The bound `(q + ℓ)/2^b` cannot drop its `q`: an attacker who simply tries
+The bounds `(q + ℓ)/2^b` cannot drop their `q`: an attacker who simply tries
 batches wins with probability `1 - (1 - 2^-b)^q`, which is about `q/2^b` while
 `q ≪ 2^b`. From one valid signature `(pk, m, r, s)`, the batch
 `[(pk, m, r, s - δ), (pk, m, r, s + δ)]` has defects `-δ·G` and `δ·G`, so it
 passes exactly when its second coefficient is `1`. The attacker hashes these
-batches for `δ = 1, …, q` and outputs the first whose coefficient is `1`. -/
+batches for `δ = 1, …, q` and outputs the first whose coefficient is `1`.
+
+For a two-signature batch both derivations hash the whole batch, so the same
+attacker works against each: `batch_grind` is stated for any derivation whose
+second coefficient tells the candidates apart. -/
+
+section Grinding
+
+variable {n : ℕ} [Fact n.Prime] {E X M : Type} [AddCommGroup E] [DecidableEq E] [DecidableEq X]
+  (C : Curve n E X) (challenge : X → X → M → ZMod n) (b : ℕ)
+  {K : Type} [DecidableEq K] (key : List (Entry n X M) → ℕ → K)
 
 namespace Grind
 
@@ -744,19 +756,18 @@ def cand (v : Entry n X M) (δ : ℕ) : List (Entry n X M) :=
 
 /-- The grinding attacker with `k` hash queries left. -/
 def grind (v : Entry n X M) (ht : 1 < 2 ^ b) :
-    ℕ → OracleComp (IndexSpec n X M b) (List (Entry n X M))
+    ℕ → OracleComp (KeySpec K b) (List (Entry n X M))
   | 0 => pure (cand v 1)
   | k + 1 => do
-    let h ← (liftM ((IndexSpec n X M b).query (cand v (k + 1), 1)) :
-      OracleComp (IndexSpec n X M b) (Fin (2 ^ b)))
+    let h ← (liftM ((KeySpec K b).query (key (cand v (k + 1)) 1)) :
+      OracleComp (KeySpec K b) (Fin (2 ^ b)))
     if h = ⟨1, ht⟩ then pure (cand v (k + 1)) else grind v ht k
 
 /-- The attacker found a candidate whose coefficient is `1`. -/
 def Found (v : Entry n X M) (ht : 1 < 2 ^ b)
-    (z : List (Entry n X M) × (IndexSpec n X M b).QueryCache) : Prop :=
-  ∃ δ, 0 < δ ∧ δ < n ∧ z.1 = cand v δ ∧ z.2 (cand v δ, 1) = some ⟨1, ht⟩
+    (z : List (Entry n X M) × (KeySpec K b).QueryCache) : Prop :=
+  ∃ δ, 0 < δ ∧ δ < n ∧ z.1 = cand v δ ∧ z.2 (key (cand v δ) 1) = some ⟨1, ht⟩
 
-omit [DecidableEq M] in
 theorem tweak_defect {v : Entry n X M} (hv : valid C challenge v = true) (d : ZMod n) :
     defect C challenge (tweak v d) = C.mulG d := by
   have h0 := ((valid_iff C challenge v).mp hv).2.2
@@ -765,7 +776,6 @@ theorem tweak_defect {v : Entry n X M} (hv : valid C challenge v = true) (d : ZM
     abel
   rw [this, h0, zero_add]
 
-omit [DecidableEq M] in
 theorem tweak_invalid {v : Entry n X M} (hv : valid C challenge v = true) {d : ZMod n}
     (hd : d ≠ 0) : valid C challenge (tweak v d) = false := by
   cases h : valid C challenge (tweak v d)
@@ -774,7 +784,6 @@ theorem tweak_invalid {v : Entry n X M} (hv : valid C challenge v = true) {d : Z
     rw [tweak_defect C challenge hv] at this
     exact absurd (C.mulG_eq_zero.mp this) hd
 
-omit [DecidableEq M] in
 /-- A candidate batch passes when both its coefficients are `1`. -/
 theorem cand_pass (hord : PrimeOrder n E) {v : Entry n X M} (hv : valid C challenge v = true)
     (d : ZMod n) (ent : Fin 2 → Entry n X M) (h0 : ent 0 = tweak v (-d))
@@ -789,16 +798,16 @@ theorem cand_pass (hord : PrimeOrder n E) {v : Entry n X M} (hv : valid C challe
   · rw [Fin.sum_univ_two, h0, h1, ha0, ha1, tweak_defect C challenge hv,
       tweak_defect C challenge hv, ZMod.val_one, one_smul, one_smul, map_neg, neg_add_cancel]
 
-omit [DecidableEq E] [DecidableEq X] [DecidableEq M] in
+omit [DecidableEq X] in
 theorem cand_inj (v : Entry n X M) {δ δ' : ℕ} (hδ : δ < n) (hδ' : δ' < n)
     (h : cand v δ = cand v δ') : δ = δ' := by
   have h2 := congrArg (fun L : List (Entry n X M) => (L.getD 1 v).s) h
   simp only [cand, tweak, List.getD_cons_succ, List.getD_cons_zero, add_right_inj] at h2
   rwa [ZMod.natCast_eq_natCast_iff', Nat.mod_eq_of_lt hδ, Nat.mod_eq_of_lt hδ'] at h2
 
-omit [AddCommGroup E] [DecidableEq E] [DecidableEq X] [DecidableEq M] in
+omit [DecidableEq X] [DecidableEq K] in
 theorem grind_bound (v : Entry n X M) (ht : 1 < 2 ^ b) (k : ℕ) :
-    IsTotalQueryBound (grind b v ht k) k := by
+    IsTotalQueryBound (grind b key v ht k) k := by
   induction k with
   | zero => trivial
   | succ k ih =>
@@ -808,9 +817,9 @@ theorem grind_bound (v : Entry n X M) (ht : 1 < 2 ^ b) (k : ℕ) :
     · trivial
     · exact ih
 
-omit [AddCommGroup E] [DecidableEq E] [DecidableEq X] [DecidableEq M] in
+omit [DecidableEq X] [DecidableEq K] in
 theorem grind_length (v : Entry n X M) (ht : 1 < 2 ^ b) (k : ℕ) :
-    ∀ L ∈ support (grind b v ht k), L.length = 2 := by
+    ∀ L ∈ support (grind b key v ht k), L.length = 2 := by
   induction k with
   | zero => intro L hL; simp only [grind, support_pure, Set.mem_singleton_iff] at hL; subst hL; rfl
   | succ k ih =>
@@ -821,23 +830,25 @@ theorem grind_length (v : Entry n X M) (ht : 1 < 2 ^ b) (k : ℕ) :
     · simp only [support_pure, Set.mem_singleton_iff] at hL; subst hL; rfl
     · exact ih L hL
 
+omit [DecidableEq X] in
 /-- **The attacker misses with probability at most `(1 - 2^-b)^k`**, as long
 as none of its `k` candidates has been hashed yet. -/
-theorem grind_miss [UniformAnswerMeasure (IndexSpec n X M b)] (v : Entry n X M)
-    (ht : 1 < 2 ^ b) (k : ℕ) (hk : k < n) (c : (IndexSpec n X M b).QueryCache)
-    (hc : ∀ δ, 0 < δ → δ ≤ k → c (cand v δ, 1) = none) :
-    Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle (grind b v ht k)).run c}[
-      ¬ Found b v ht z] ≤ (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ k := by
+theorem grind_miss [UniformAnswerMeasure (KeySpec K b)] (v : Entry n X M)
+    (hkey : ∀ δ δ', key (cand v δ) 1 = key (cand v δ') 1 → cand v δ = cand v δ')
+    (ht : 1 < 2 ^ b) (k : ℕ) (hk : k < n) (c : (KeySpec K b).QueryCache)
+    (hc : ∀ δ, 0 < δ → δ ≤ k → c (key (cand v δ) 1) = none) :
+    Pr{let z ← (simulateQ (KeySpec K b).cachingOracle (grind b key v ht k)).run c}[
+      ¬ Found b key v ht z] ≤ (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ k := by
   induction k generalizing c with
   | zero => rw [pow_zero]; exact prEvent_le_one _
   | succ k ih =>
     rw [grind, simulateQ_bind, cachingOracle.simulateQ_query, StateT.run_bind,
       cachingOracle.run_none (hc (k + 1) (Nat.succ_pos k) le_rfl), bind_map_left,
       prEvent_bind_eq_sum_fintype]
-    have hq : ∀ u : Fin (2 ^ b), Pr{let x ← (liftM ((IndexSpec n X M b).query
-        (cand v (k + 1), 1)) : OracleComp (IndexSpec n X M b) (Fin (2 ^ b)))}[x = u] =
+    have hq : ∀ u : Fin (2 ^ b), Pr{let x ← (liftM ((KeySpec K b).query
+        (key (cand v (k + 1)) 1)) : OracleComp (KeySpec K b) (Fin (2 ^ b)))}[x = u] =
           ((2 ^ b : ℕ) : ℝ≥0∞)⁻¹ := fun u => by
-      refine (prEvent_liftM_query_eq_card_div (spec := IndexSpec n X M b) _ (· = u)).trans ?_
+      refine (prEvent_liftM_query_eq_card_div (spec := KeySpec K b) _ (· = u)).trans ?_
       simp [Finset.filter_eq', one_div]
     set B := (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) with hB
     let tgt : Fin (2 ^ b) := ⟨1, ht⟩
@@ -856,10 +867,9 @@ theorem grind_miss [UniformAnswerMeasure (IndexSpec n X M b)] (v : Entry n X M)
             simp only [tgt, hu, ↓reduceIte]
             gcongr
             refine ih (by omega) _ fun δ hδ hδk => ?_
-            have hne : ((cand v δ, 1) : List (Entry n X M) × ℕ) ≠ (cand v (k + 1), 1) :=
-              fun h => by
-                have := cand_inj v (by omega) hk (Prod.mk.inj h).1
-                omega
+            have hne : key (cand v δ) 1 ≠ key (cand v (k + 1)) 1 := fun h => by
+              have := cand_inj v (δ := δ) (δ' := k + 1) (by omega) hk (hkey _ _ h)
+              omega
             rw [QueryCache.cacheQuery_of_ne _ _ hne]
             exact hc δ hδ (by omega)
       _ = ((2 ^ b - 1 : ℕ) : ℝ≥0∞) * (((2 ^ b : ℕ) : ℝ≥0∞)⁻¹ * B ^ k) := by
@@ -876,31 +886,32 @@ theorem grind_miss [UniformAnswerMeasure (IndexSpec n X M b)] (v : Entry n X M)
 end Grind
 
 open Grind in
-/-- **Grinding matches the bound**: from any valid signature `v`, the
-attacker `grind`, which makes `q` hash queries and outputs batches of two
-signatures, gets a batch containing an invalid signature accepted with
-probability at least `1 - (1 - 2^-b)^q`. Compare `batch_indexed_sound`'s upper
-bound `(q + 2)/2^b`. -/
-theorem batch_indexed_grind [UniformAnswerMeasure (IndexSpec n X M b)]
+/-- **Grinding, for any derivation** that hashes a two-signature batch into
+its second coefficient without collisions between candidates: the attacker
+`grind`, which makes `q` hash queries and outputs batches of two signatures,
+wins with probability at least `1 - (1 - 2^-b)^q`. -/
+theorem batch_grind [UniformAnswerMeasure (KeySpec K b)]
     (hord : PrimeOrder n E) (ht : 1 < 2 ^ b) {v : Entry n X M}
-    (hv : valid C challenge v = true) (q : ℕ) (hq : q < n) :
+    (hv : valid C challenge v = true)
+    (hkey : ∀ δ δ', key (cand v δ) 1 = key (cand v δ') 1 → cand v δ = cand v δ')
+    (q : ℕ) (hq : q < n) :
     1 - (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ q ≤
-      Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle
-        (batchGame b indexKey (grind b v ht q))).run ∅}[Wins C challenge z.1] := by
-  have hmiss := grind_miss b v ht q hq ∅ fun _ _ _ => rfl
+      Pr{let z ← (simulateQ (KeySpec K b).cachingOracle
+        (batchGame b key (grind b key v ht q))).run ∅}[Wins C challenge z.1] := by
+  have hmiss := grind_miss b key v hkey ht q hq ∅ fun _ _ _ => rfl
   have hfound : 1 - (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ q ≤
-      Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle (grind b v ht q)).run ∅}[
-        Found b v ht z] :=
-    calc _ ≤ 1 - Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle
-          (grind b v ht q)).run ∅}[¬ Found b v ht z] := tsub_le_tsub_left hmiss 1
+      Pr{let z ← (simulateQ (KeySpec K b).cachingOracle (grind b key v ht q)).run ∅}[
+        Found b key v ht z] :=
+    calc _ ≤ 1 - Pr{let z ← (simulateQ (KeySpec K b).cachingOracle
+          (grind b key v ht q)).run ∅}[¬ Found b key v ht z] := tsub_le_tsub_left hmiss 1
       _ = _ := by
         rw [prEvent_not_eq_one_sub, ENNReal.sub_sub_cancel ENNReal.one_ne_top (prEvent_le_one _)]
   unfold batchGame
   rw [simulateQ_bind, StateT.run_bind]
   refine le_trans hfound ?_
-  rw [← mul_one (Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle
-    (grind b v ht q)).run ∅}[Found b v ht z])]
-  refine mul_le_prEvent_bind_of_forall _ _ (Found b v ht) _ le_rfl
+  rw [← mul_one (Pr{let z ← (simulateQ (KeySpec K b).cachingOracle
+    (grind b key v ht q)).run ∅}[Found b key v ht z])]
+  refine mul_le_prEvent_bind_of_forall _ _ (Found b key v ht) _ le_rfl
     fun x hx => (prEvent_eq_one_of_forall_mem_support _ _ fun z hz => ?_).ge
   obtain ⟨L, c⟩ := x
   obtain ⟨δ, hδ, hδn, rfl, hcδ⟩ := hx
@@ -908,12 +919,12 @@ theorem batch_indexed_grind [UniformAnswerMeasure (IndexSpec n X M b)]
   obtain ⟨⟨as, c₂⟩, h₂, hz⟩ := hz
   simp only [simulateQ_pure, StateT.run_pure, support_pure, Set.mem_singleton_iff] at hz
   subst hz
-  have hco := coeffs_spec b indexKey (cand v δ) _ c (as, c₂) h₂
+  have hco := coeffs_spec b key (cand v δ) _ c (as, c₂) h₂
   have hle := simulateQ_cachingOracle_cache_le _ c _ h₂
   have ha0 : as.getD 0 0 = 1 := by simpa using (hco 0 (by simp [cand])).1 (by simp)
   have ha1 : as.getD 1 0 = 1 := by
     obtain ⟨h, hc, ha⟩ := (hco 1 (by simp [cand])).2 (by simp [cand])
-    have hc' : c₂ (cand v δ, 1) = some h := by
+    have hc' : c₂ (key (cand v δ) 1) = some h := by
       rw [List.getElem_range] at hc
       exact hc
     rw [hle hcδ, Option.some.injEq] at hc'
@@ -925,7 +936,37 @@ theorem batch_indexed_grind [UniformAnswerMeasure (IndexSpec n X M b)]
   refine ⟨cand_pass C challenge hord hv δ (cand v δ).get rfl rfl _ (by simpa using ha0)
     (by simpa using ha1), ⟨1, by simp [cand]⟩, tweak_invalid C challenge hv hδ0⟩
 
-end Indexed
+variable [DecidableEq M]
+
+open Grind in
+/-- **Grinding matches the bound, whole-batch derivation**: from any valid
+signature `v`, the attacker `grind`, which makes `q` hash queries and outputs
+batches of two signatures, gets a batch containing an invalid signature
+accepted with probability at least `1 - (1 - 2^-b)^q`. Compare
+`batch_indexed_sound`'s upper bound `(q + 2)/2^b`. -/
+theorem batch_indexed_grind [UniformAnswerMeasure (IndexSpec n X M b)]
+    (hord : PrimeOrder n E) (ht : 1 < 2 ^ b) {v : Entry n X M}
+    (hv : valid C challenge v = true) (q : ℕ) (hq : q < n) :
+    1 - (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ q ≤
+      Pr{let z ← (simulateQ (IndexSpec n X M b).cachingOracle
+        (batchGame b indexKey (grind b indexKey v ht q))).run ∅}[Wins C challenge z.1] :=
+  batch_grind C challenge b indexKey hord ht hv (fun _ _ h => (Prod.mk.inj h).1) q hq
+
+open Grind in
+/-- **Grinding matches the bound, incremental derivation**: the same attacker
+reaches `1 - (1 - 2^-b)^q` against incremental derivation, since the second
+coefficient of a two-signature batch hashes the whole batch. Compare
+`batch_incremental_sound`'s upper bound `(q + 2)/2^b`. -/
+theorem batch_incremental_grind [UniformAnswerMeasure (PrefixSpec n X M b)]
+    (hord : PrimeOrder n E) (ht : 1 < 2 ^ b) {v : Entry n X M}
+    (hv : valid C challenge v = true) (q : ℕ) (hq : q < n) :
+    1 - (((2 ^ b - 1 : ℕ) : ℝ≥0∞) / (2 ^ b : ℕ)) ^ q ≤
+      Pr{let z ← (simulateQ (PrefixSpec n X M b).cachingOracle
+        (batchGame b prefixKey (grind b prefixKey v ht q))).run ∅}[Wins C challenge z.1] :=
+  batch_grind C challenge b prefixKey hord ht hv (fun _ _ h => by simpa [prefixKey, cand] using h)
+    q hq
+
+end Grinding
 
 /-! ## On secp256k1 with 128-bit coefficients -/
 

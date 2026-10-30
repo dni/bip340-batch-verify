@@ -10,5 +10,6 @@ import BatchVerify.BIP340Batch
 #print axioms BatchVerify.BIP340Batch.batch_incremental_sound
 #print axioms BatchVerify.BIP340Batch.batch_indexed_sound
 #print axioms BatchVerify.BIP340Batch.batch_indexed_grind
+#print axioms BatchVerify.BIP340Batch.batch_incremental_grind
 #print axioms BatchVerify.BIP340Batch.secp256k1_batch_incremental_sound
 #print axioms BatchVerify.BIP340Batch.secp256k1_batch_indexed_sound

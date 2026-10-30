@@ -18,11 +18,11 @@ Each result holds for every choice of the challenge hash.
 | Randomizers hashed from the whole batch (the BIP340 text) | An attacker making `q` hash queries, with batches of at most `ℓ` signatures, gets an invalid batch accepted with probability **at most `(q + ℓ)/2^b`**. | `batch_indexed_sound` |
 | Incremental derivation (randomizer `i` hashes the first `i` entries) | The same bound, **`(q + ℓ)/2^b`**, although the attacker chooses later entries after seeing earlier randomizers. | `batch_incremental_sound` |
 | Both derivations on secp256k1 with `b = 128` | **`(q + ℓ)/2^128`** | `secp256k1_batch_indexed_sound`, `secp256k1_batch_incremental_sound` |
-| Lower bound, whole-batch derivation | An explicit grinding attacker reaches **`1 - (1 - 2^-b)^q ≈ q/2^b`** (for `q ≪ 2^b`), so the `q` term is tight. | `batch_indexed_grind` |
+| Lower bound, both derivations | An explicit grinding attacker reaches **`1 - (1 - 2^-b)^q ≈ q/2^b`** (for `q ≪ 2^b`), so the `q` term is tight. | `batch_indexed_grind`, `batch_incremental_grind` |
 
 What this means for 128-bit randomizers: they are sound, and the only extra cost of deriving them deterministically is offline grinding at one hash per attempt. About `2^64` hash evaluations get an invalid batch accepted with probability about `2^-64`.
 
-The grinding attack: from one valid signature `(pk, m, r, s)`, the batch `[(pk, m, r, s - δ), (pk, m, r, s + δ)]` contains two invalid signatures whose errors cancel, so it passes exactly when its second randomizer is `1`. The attacker hashes these batches for `δ = 1, …, q`. The same attack should work against incremental derivation, but that is not proven here.
+The grinding attack: from one valid signature `(pk, m, r, s)`, the batch `[(pk, m, r, s - δ), (pk, m, r, s + δ)]` contains two invalid signatures whose errors cancel, so it passes exactly when its second randomizer is `1`. The attacker hashes these batches for `δ = 1, …, q`. For a two-signature batch both derivations hash the whole batch into the second randomizer, so the same attacker works against both.
 
 ### All theorems
 
@@ -42,7 +42,8 @@ The grinding attack: from one valid signature `(pk, m, r, s)`, the batch `[(pk, 
 | `batch_incremental_sound` | Incremental derivation: winning probability at most `(q + ℓ)/2^b` (`2^b ≤ n`). |
 | `batch_indexed_sound` | Whole-batch derivation: the same bound. |
 | `secp256k1_batch_indexed_sound`, `secp256k1_batch_incremental_sound` | Both bounds on secp256k1 with `b = 128`. |
-| `batch_indexed_grind` | The grinding lower bound `1 - (1 - 2^-b)^q`, against the upper bound `(q + 2)/2^b`. |
+| `batch_grind` | The grinding lower bound `1 - (1 - 2^-b)^q` for any derivation that tells the candidate batches apart. |
+| `batch_indexed_grind`, `batch_incremental_grind` | The grinding lower bound for each derivation, against the upper bound `(q + 2)/2^b`. |
 | `prEvent_bad_le` | A generic random-oracle bad-event bound with a potential. It allows one fresh answer to complete several bad candidates, as long as earlier queries paid for them. |
 
 Proof idea (incremental): cut the winning batch after its last invalid signature. That prefix still passes, and its equation involves only coefficients of its own prefixes. The last of those to be answered must hit the single value that solves the equation. One fresh answer can complete many cached extensions of the queried prefix, but each cached prefix is completed only once, so the total stays at one bad value per query. Whole-batch derivation is simpler: one fresh answer completes at most one batch.
